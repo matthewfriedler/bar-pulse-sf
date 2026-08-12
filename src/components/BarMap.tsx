@@ -5,7 +5,7 @@ import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet"
 import type { LatestUpdate } from "@/hooks/useBarPulse";
 import { STATUS_META, statusFor, type Bar } from "@/lib/barpulse";
 
-const CENTER: [number, number] = [37.7992, -122.4355];
+const CENTER: [number, number] = [37.7990, -122.4345];
 
 function pinIcon(bar: Bar, update: LatestUpdate | undefined, active: boolean) {
   const status = STATUS_META[statusFor(update)];
@@ -43,7 +43,7 @@ export default function BarMap({ bars, latestByBar, selectedId, onSelect }: Prop
   return (
     <MapContainer
       center={CENTER}
-      zoom={15}
+      zoom={16}
       scrollWheelZoom
       className="h-full w-full"
       attributionControl
