@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bar_updates: {
+        Row: {
+          bar_id: string
+          capacity: number
+          created_at: string
+          id: string
+          is_owner: boolean
+          user_id: string
+          vibe_note: string | null
+          wait_minutes: number
+        }
+        Insert: {
+          bar_id: string
+          capacity: number
+          created_at?: string
+          id?: string
+          is_owner?: boolean
+          user_id: string
+          vibe_note?: string | null
+          wait_minutes: number
+        }
+        Update: {
+          bar_id?: string
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_owner?: boolean
+          user_id?: string
+          vibe_note?: string | null
+          wait_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bar_updates_bar_id_fkey"
+            columns: ["bar_id"]
+            isOneToOne: false
+            referencedRelation: "bars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bars: {
+        Row: {
+          address: string
+          id: string
+          lat: number
+          lng: number
+          name: string
+          neighborhood: string
+          vibe: string
+        }
+        Insert: {
+          address: string
+          id: string
+          lat: number
+          lng: number
+          name: string
+          neighborhood: string
+          vibe: string
+        }
+        Update: {
+          address?: string
+          id?: string
+          lat?: number
+          lng?: number
+          name?: string
+          neighborhood?: string
+          vibe?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
