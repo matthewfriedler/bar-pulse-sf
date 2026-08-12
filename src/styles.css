@@ -59,6 +59,19 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-primary-glow: var(--primary-glow);
+  --color-status-clear: var(--status-clear);
+  --color-status-clear-soft: var(--status-clear-soft);
+  --color-status-busy: var(--status-busy);
+  --color-status-busy-soft: var(--status-busy-soft);
+  --color-status-packed: var(--status-packed);
+  --color-status-packed-soft: var(--status-packed-soft);
+  --color-status-unknown: var(--status-unknown);
+  --color-status-unknown-soft: var(--status-unknown-soft);
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
 }
 
 :root {
@@ -164,5 +177,61 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Leaflet surface tuning so the map matches the app's light, lively look */
+.leaflet-container {
+  background: var(--muted);
+  font-family: var(--font-sans);
+}
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9);
+}
+.leaflet-control-attribution {
+  font-size: 9px;
+  background: color-mix(in oklab, var(--card) 80%, transparent) !important;
+  color: var(--muted-foreground) !important;
+}
+.leaflet-control-zoom a {
+  background: var(--card) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+.bp-pin {
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  border: 2px solid var(--card);
+  color: white;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 6px 16px -6px rgb(0 0 0 / 0.5);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+.bp-pin-active {
+  transform: scale(1.25);
+  box-shadow: 0 10px 22px -6px rgb(0 0 0 / 0.55);
+}
+@keyframes bp-pulse {
+  0% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 0.55;
+  }
+  100% {
+    box-shadow: 0 0 0 14px transparent;
+    opacity: 0;
   }
 }
