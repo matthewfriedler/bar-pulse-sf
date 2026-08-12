@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   bar: Bar;
-  update?: LatestUpdate;
+  update: LatestUpdate | undefined;
   active: boolean;
   onSelect: () => void;
   onReport: () => void;
