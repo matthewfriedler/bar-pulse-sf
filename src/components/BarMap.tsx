@@ -2,15 +2,14 @@ import L from "leaflet";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 
-import type { LatestUpdate } from "@/hooks/useBarPulse";
-import { STATUS_META, statusFor, type Bar } from "@/lib/barpulse";
+import { STATUS_META, type Bar, type Consensus } from "@/lib/barpulse";
 
 const CENTER: [number, number] = [37.7990, -122.4345];
 
-function pinIcon(bar: Bar, update: LatestUpdate | undefined, active: boolean) {
-  const status = STATUS_META[statusFor(update)];
+function pinIcon(bar: Bar, consensus: Consensus | undefined, active: boolean) {
+  const status = STATUS_META[consensus?.status ?? "unknown"];
   const size = active ? 40 : 32;
-  const label = update ? `${update.capacity}` : "?";
+  const label = consensus?.capacity != null ? `${consensus.capacity}` : "?";
   return L.divIcon({
     className: "",
     html: `<div class="bp-pin ${active ? "bp-pin-active" : ""}" style="width:${size}px;height:${size}px;background:${status.hex}">${label}</div>`,
