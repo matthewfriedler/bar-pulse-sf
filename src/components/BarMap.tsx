@@ -56,13 +56,13 @@ export default function BarMap({ bars, consensusByBar, selectedId, onSelect }: P
         <Marker
           key={bar.id}
           position={[bar.lat, bar.lng]}
-          icon={pinIcon(bar, latestByBar.get(bar.id), bar.id === selectedId)}
+          icon={pinIcon(bar, consensusByBar.get(bar.id), bar.id === selectedId)}
           eventHandlers={{ click: () => onSelect(bar.id) }}
         >
           <Tooltip direction="top" offset={[0, -18]}>
             <span className="font-semibold">{bar.name}</span>
             <br />
-            {STATUS_META[statusFor(latestByBar.get(bar.id))].label}
+            {STATUS_META[consensusByBar.get(bar.id)?.status ?? "unknown"].label}
           </Tooltip>
         </Marker>
       ))}
