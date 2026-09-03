@@ -3,7 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
-import type { Bar, BarUpdate } from "@/lib/barpulse";
+import {
+  CHECKIN_WINDOW_MINUTES,
+  computeConsensus,
+  type Bar,
+  type BarUpdate,
+  type Consensus,
+} from "@/lib/barpulse";
 
 export interface LatestUpdate extends BarUpdate {
   username: string;
