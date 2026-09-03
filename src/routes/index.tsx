@@ -45,12 +45,13 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { theme, toggle } = useTheme();
-  const { bars, latestByBar, isLoading, refetchUpdates } = useBarPulse();
+  const { bars, latestByBar, consensusByBar, isLoading, refetchUpdates } = useBarPulse();
   const { session, username } = useSession();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [reportBar, setReportBar] = useState<Bar | null>(null);
+  const [checkingInId, setCheckingInId] = useState<string | null>(null);
   const [, setTick] = useState(0);
 
   // keep "x min ago" labels honest
