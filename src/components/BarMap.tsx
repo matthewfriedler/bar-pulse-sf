@@ -28,12 +28,12 @@ function MapFocus({ target }: { target: [number, number] | null }) {
 
 interface Props {
   bars: Bar[];
-  latestByBar: Map<string, LatestUpdate>;
+  consensusByBar: Map<string, Consensus>;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export default function BarMap({ bars, latestByBar, selectedId, onSelect }: Props) {
+export default function BarMap({ bars, consensusByBar, selectedId, onSelect }: Props) {
   const target = useMemo<[number, number] | null>(() => {
     const bar = bars.find((b) => b.id === selectedId);
     return bar ? [bar.lat, bar.lng] : null;
