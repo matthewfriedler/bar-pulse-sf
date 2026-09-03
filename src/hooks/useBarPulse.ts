@@ -38,6 +38,22 @@ async function fetchUpdates(): Promise<LatestUpdate[]> {
   }));
 }
 
+async function fetchCheckins(): Promise<Map<string, number>> {
+  const since = new Date(Date.now() - CHECKIN_WINDOW_MINUTES * 60_000).toISOString();
+  const { data, error } = await supabase
+    .from("bar_checkins")
+    .select("bar_id, user_id")
+    .gte("created_at", since);
+  if (error) throw error;
+  const perBar = new Map<string, Set<string>>();
+  for (const row of data ?? []) {
+    const set = perBar.get(row.bar_id) ?? new Set<string>();
+    set.add(row.user_id);
+    perBar.set(row.bar_id, set);
+  }
+  return new Map([...perBar].map(([barId, people]) => [barId, people.size]));
+}
+
 export function useBarPulse() {
   const queryClient = useQueryClient();
 
@@ -47,15 +63,27 @@ export function useBarPulse() {
     queryFn: fetchUpdates,
     refetchInterval: 30_000,
   });
+  const checkinsQuery = useQuery({
+    queryKey: ["bar_checkins"],
+    queryFn: fetchCheckins,
+    refetchInterval: 60_000,
+  });
 
   useEffect(() => {
     const channel = supabase
-      .channel("bar_updates_live")
+      .channel("bar_pulse_live")
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "bar_updates" },
         () => {
           void queryClient.invalidateQueries({ queryKey: ["bar_updates"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "bar_checkins" },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["bar_checkins"] });
         },
       )
       .subscribe();
@@ -72,11 +100,36 @@ export function useBarPulse() {
     return map;
   }, [updatesQuery.data]);
 
+  const consensusByBar = useMemo(() => {
+    const grouped = new Map<string, BarUpdate[]>();
+    for (const u of updatesQuery.data ?? []) {
+      const list = grouped.get(u.bar_id) ?? [];
+      list.push(u);
+      grouped.set(u.bar_id, list);
+    }
+    const map = new Map<string, Consensus>();
+    const barIds = new Set([
+      ...(barsQuery.data ?? []).map((b) => b.id),
+      ...grouped.keys(),
+    ]);
+    for (const id of barIds) {
+      map.set(
+        id,
+        computeConsensus(grouped.get(id) ?? [], checkinsQuery.data?.get(id) ?? 0),
+      );
+    }
+    return map;
+  }, [updatesQuery.data, checkinsQuery.data, barsQuery.data]);
+
   return {
     bars: barsQuery.data ?? [],
     latestByBar,
+    consensusByBar,
     isLoading: barsQuery.isLoading || updatesQuery.isLoading,
-    refetchUpdates: () => queryClient.invalidateQueries({ queryKey: ["bar_updates"] }),
+    refetchUpdates: () => {
+      void queryClient.invalidateQueries({ queryKey: ["bar_updates"] });
+      void queryClient.invalidateQueries({ queryKey: ["bar_checkins"] });
+    },
   };
 }
 
