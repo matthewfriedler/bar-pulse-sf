@@ -16,7 +16,6 @@ import {
   STATUS_META,
   distanceMeters,
   type Bar,
-  type StatusKey,
 } from "@/lib/barpulse";
 
 const BarMap = lazy(() => import("@/components/BarMap"));
