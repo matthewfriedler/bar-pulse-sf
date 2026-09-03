@@ -1,21 +1,50 @@
-import { AlertTriangle, Clock, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock,
+  MapPin,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { LatestUpdate } from "@/hooks/useBarPulse";
-import { STATUS_META, isStale, statusFor, timeAgoLabel, type Bar } from "@/lib/barpulse";
+import {
+  CONFIDENCE_META,
+  STATUS_META,
+  isStale,
+  timeAgoLabel,
+  type Bar,
+  type Consensus,
+} from "@/lib/barpulse";
 import { cn } from "@/lib/utils";
 
 interface Props {
   bar: Bar;
   update: LatestUpdate | undefined;
+  consensus: Consensus | undefined;
   active: boolean;
+  checkingIn: boolean;
   onSelect: () => void;
   onReport: () => void;
+  onCheckIn: () => void;
 }
 
-export function BarCard({ bar, update, active, onSelect, onReport }: Props) {
-  const status = STATUS_META[statusFor(update)];
+export function BarCard({
+  bar,
+  update,
+  consensus,
+  active,
+  checkingIn,
+  onSelect,
+  onReport,
+  onCheckIn,
+}: Props) {
+  const status = STATUS_META[consensus?.status ?? "unknown"];
   const stale = update ? isStale(update.created_at) : false;
+  const capacity = consensus?.capacity ?? null;
+  const confidence = CONFIDENCE_META[consensus?.confidence ?? "none"];
 
   return (
     <article
@@ -45,62 +74,111 @@ export function BarCard({ bar, update, active, onSelect, onReport }: Props) {
         </span>
       </div>
 
-      {update ? (
+      {capacity != null && consensus ? (
         <>
           <div className="mt-3 flex items-center gap-3">
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${update.capacity}%`, backgroundColor: status.hex }}
+                style={{ width: `${capacity}%`, backgroundColor: status.hex }}
               />
             </div>
-            <span className="font-display text-sm font-bold tabular-nums">
-              {update.capacity}%
-            </span>
+            <span className="font-display text-sm font-bold tabular-nums">{capacity}%</span>
+            {consensus.trend === "rising" && (
+              <TrendingUp className="size-4 text-status-packed" aria-label="Filling up fast" />
+            )}
+            {consensus.trend === "falling" && (
+              <TrendingDown className="size-4 text-status-clear" aria-label="Emptying out" />
+            )}
           </div>
+
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="size-3.5" />
-              {update.wait_minutes === 0 ? "No wait" : `${update.wait_minutes} min wait`}
+              {consensus.waitMinutes ? `${consensus.waitMinutes} min wait` : "No wait"}
             </span>
-            {update.vibe_note && (
+            {consensus.checkedIn > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Users className="size-3.5" />
+                {consensus.checkedIn} checked in
+              </span>
+            )}
+            {update?.vibe_note && (
               <span className="inline-flex items-center gap-1 text-secondary">
                 <Sparkles className="size-3.5" />
                 {update.vibe_note}
               </span>
             )}
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {update.is_owner ? (
-              <span className="font-semibold text-primary">Owner update</span>
-            ) : (
-              <span className="font-medium">@{update.username}</span>
-            )}
-            , {timeAgoLabel(update.created_at)}
-            {stale && (
-              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-status-busy-soft px-2 py-0.5 font-medium text-status-busy">
-                <AlertTriangle className="size-3" /> stale
-              </span>
+
+          <p className="mt-2 text-xs text-muted-foreground" title={confidence.blurb}>
+            <span
+              className={cn(
+                "font-medium",
+                consensus.confidence === "high" && "text-status-clear",
+                consensus.confidence === "low" && "text-status-busy",
+              )}
+            >
+              {confidence.label}
+            </span>{" "}
+            · {consensus.reports} report{consensus.reports === 1 ? "" : "s"} from{" "}
+            {consensus.contributors} {consensus.contributors === 1 ? "person" : "people"}
+            {consensus.ownerBacked && (
+              <span className="font-semibold text-primary"> · staff confirmed</span>
             )}
           </p>
+
+          {update && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Last:{" "}
+              {update.is_owner ? (
+                <span className="font-semibold text-primary">Owner update</span>
+              ) : (
+                <span className="font-medium">@{update.username}</span>
+              )}
+              , {timeAgoLabel(update.created_at)}
+              {stale && (
+                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-status-busy-soft px-2 py-0.5 font-medium text-status-busy">
+                  <AlertTriangle className="size-3" /> stale
+                </span>
+              )}
+            </p>
+          )}
         </>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">
-          No reports yet tonight — {bar.address}
+          {consensus && consensus.checkedIn > 0
+            ? `${consensus.checkedIn} checked in, but nobody has rated the crowd yet.`
+            : `No live signal tonight — ${bar.address}`}
         </p>
       )}
 
-      <Button
-        variant="secondary"
-        size="sm"
-        className="mt-3 w-full"
-        onClick={(e) => {
-          e.stopPropagation();
-          onReport();
-        }}
-      >
-        Post an update
-      </Button>
+      <div className="mt-3 flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1"
+          disabled={checkingIn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onCheckIn();
+          }}
+        >
+          <MapPin className="size-4" />
+          {checkingIn ? "Checking…" : "I'm here"}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="flex-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onReport();
+          }}
+        >
+          Rate the crowd
+        </Button>
+      </div>
     </article>
   );
 }
