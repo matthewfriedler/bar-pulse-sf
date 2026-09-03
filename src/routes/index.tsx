@@ -60,7 +60,6 @@ function Index() {
     return () => clearInterval(id);
   }, []);
 
-  const statusOf = (barId: string): StatusKey => consensusByBar.get(barId)?.status ?? "unknown";
 
   const visibleBars = useMemo(
     () =>
