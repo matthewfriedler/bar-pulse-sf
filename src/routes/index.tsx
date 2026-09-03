@@ -60,24 +60,29 @@ function Index() {
     return () => clearInterval(id);
   }, []);
 
+  const statusOf = (barId: string): StatusKey => consensusByBar.get(barId)?.status ?? "unknown";
+
   const visibleBars = useMemo(
     () =>
       bars.filter((bar) => {
         if (filters.neighborhood !== "all" && bar.neighborhood !== filters.neighborhood)
           return false;
         if (filters.vibe !== "all" && bar.vibe !== filters.vibe) return false;
-        if (filters.status !== "all" && statusFor(latestByBar.get(bar.id)) !== filters.status)
+        if (
+          filters.status !== "all" &&
+          (consensusByBar.get(bar.id)?.status ?? "unknown") !== filters.status
+        )
           return false;
         return true;
       }),
-    [bars, filters, latestByBar],
+    [bars, filters, consensusByBar],
   );
 
   const counts = useMemo(() => {
     const c = { clear: 0, busy: 0, packed: 0, unknown: 0 };
-    for (const bar of bars) c[statusFor(latestByBar.get(bar.id))] += 1;
+    for (const bar of bars) c[consensusByBar.get(bar.id)?.status ?? "unknown"] += 1;
     return c;
-  }, [bars, latestByBar]);
+  }, [bars, consensusByBar]);
 
   function requestReport(bar: Bar) {
     setSelectedId(bar.id);
@@ -87,6 +92,57 @@ function Index() {
       return;
     }
     setReportBar(bar);
+  }
+
+  /** One-tap, GPS-verified presence ping — the cheapest real capacity signal. */
+  function checkIn(bar: Bar) {
+    setSelectedId(bar.id);
+    if (!session) {
+      toast.info("Create a free account to check in.");
+      setAuthOpen(true);
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("This device can't share a location, so we can't verify you're at the bar.");
+      return;
+    }
+    setCheckingInId(bar.id);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const distance = distanceMeters(
+          { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          { lat: bar.lat, lng: bar.lng },
+        );
+        if (distance > NEARBY_METERS) {
+          setCheckingInId(null);
+          toast.error(
+            `You're about ${Math.round(distance)} m from ${bar.name} — get closer to check in.`,
+          );
+          return;
+        }
+        const { error } = await supabase.from("bar_checkins").insert({
+          bar_id: bar.id,
+          user_id: session.user.id,
+          accuracy_meters: pos.coords.accuracy,
+        });
+        setCheckingInId(null);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        toast.success(`Checked in at ${bar.name}. Rate the crowd to make it count more.`);
+        void refetchUpdates();
+      },
+      (err) => {
+        setCheckingInId(null);
+        toast.error(
+          err.code === err.PERMISSION_DENIED
+            ? "Location is blocked. Turn it on for this site to check in."
+            : "We couldn't get a location fix. Try again in a moment.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
   }
 
   return (
