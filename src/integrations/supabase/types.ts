@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      bar_checkins: {
+        Row: {
+          accuracy_meters: number | null
+          bar_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_meters?: number | null
+          bar_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          accuracy_meters?: number | null
+          bar_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bar_checkins_bar_id_fkey"
+            columns: ["bar_id"]
+            isOneToOne: false
+            referencedRelation: "bars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bar_updates: {
         Row: {
           bar_id: string

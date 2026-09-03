@@ -2,15 +2,14 @@ import L from "leaflet";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 
-import type { LatestUpdate } from "@/hooks/useBarPulse";
-import { STATUS_META, statusFor, type Bar } from "@/lib/barpulse";
+import { STATUS_META, type Bar, type Consensus } from "@/lib/barpulse";
 
 const CENTER: [number, number] = [37.7990, -122.4345];
 
-function pinIcon(bar: Bar, update: LatestUpdate | undefined, active: boolean) {
-  const status = STATUS_META[statusFor(update)];
+function pinIcon(bar: Bar, consensus: Consensus | undefined, active: boolean) {
+  const status = STATUS_META[consensus?.status ?? "unknown"];
   const size = active ? 40 : 32;
-  const label = update ? `${update.capacity}` : "?";
+  const label = consensus?.capacity != null ? `${consensus.capacity}` : "?";
   return L.divIcon({
     className: "",
     html: `<div class="bp-pin ${active ? "bp-pin-active" : ""}" style="width:${size}px;height:${size}px;background:${status.hex}">${label}</div>`,
@@ -29,12 +28,12 @@ function MapFocus({ target }: { target: [number, number] | null }) {
 
 interface Props {
   bars: Bar[];
-  latestByBar: Map<string, LatestUpdate>;
+  consensusByBar: Map<string, Consensus>;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export default function BarMap({ bars, latestByBar, selectedId, onSelect }: Props) {
+export default function BarMap({ bars, consensusByBar, selectedId, onSelect }: Props) {
   const target = useMemo<[number, number] | null>(() => {
     const bar = bars.find((b) => b.id === selectedId);
     return bar ? [bar.lat, bar.lng] : null;
@@ -57,13 +56,13 @@ export default function BarMap({ bars, latestByBar, selectedId, onSelect }: Prop
         <Marker
           key={bar.id}
           position={[bar.lat, bar.lng]}
-          icon={pinIcon(bar, latestByBar.get(bar.id), bar.id === selectedId)}
+          icon={pinIcon(bar, consensusByBar.get(bar.id), bar.id === selectedId)}
           eventHandlers={{ click: () => onSelect(bar.id) }}
         >
           <Tooltip direction="top" offset={[0, -18]}>
             <span className="font-semibold">{bar.name}</span>
             <br />
-            {STATUS_META[statusFor(latestByBar.get(bar.id))].label}
+            {STATUS_META[consensusByBar.get(bar.id)?.status ?? "unknown"].label}
           </Tooltip>
         </Marker>
       ))}
