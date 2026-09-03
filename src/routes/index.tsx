@@ -215,9 +215,12 @@ function Index() {
                 key={bar.id}
                 bar={bar}
                 update={latestByBar.get(bar.id)}
+                consensus={consensusByBar.get(bar.id)}
                 active={selectedId === bar.id}
+                checkingIn={checkingInId === bar.id}
                 onSelect={() => setSelectedId(bar.id)}
                 onReport={() => requestReport(bar)}
+                onCheckIn={() => checkIn(bar)}
               />
             ))}
           </div>
