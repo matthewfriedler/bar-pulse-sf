@@ -236,7 +236,7 @@ function Index() {
           >
             <ClientOnlyMap
               bars={visibleBars}
-              latestByBar={latestByBar}
+              consensusByBar={consensusByBar}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />
