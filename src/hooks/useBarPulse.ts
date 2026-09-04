@@ -133,9 +133,17 @@ export function useBarPulse() {
   };
 }
 
+export interface Profile {
+  id: string;
+  username: string;
+  username_confirmed: boolean;
+  avatar_url: string | null;
+  settings: AppSettings;
+}
+
 export function useSession() {
   const [session, setSession] = useState<Session | null>(null);
-  const [username, setUsername] = useState<string | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -149,18 +157,34 @@ export function useSession() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!session?.user) {
-      setUsername(null);
+  const userId = session?.user.id ?? null;
+
+  const loadProfile = useCallback(async () => {
+    if (!userId) {
+      setProfile(null);
       return;
     }
-    void supabase
+    const { data } = await supabase
       .from("profiles")
-      .select("username")
-      .eq("id", session.user.id)
-      .maybeSingle()
-      .then(({ data }) => setUsername(data?.username ?? null));
-  }, [session?.user]);
+      .select("id, username, username_confirmed, avatar_url, settings")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!data) {
+      setProfile(null);
+      return;
+    }
+    setProfile({
+      id: data.id,
+      username: data.username,
+      username_confirmed: Boolean((data as { username_confirmed?: boolean }).username_confirmed),
+      avatar_url: (data as { avatar_url?: string | null }).avatar_url ?? null,
+      settings: parseSettings((data as { settings?: unknown }).settings),
+    });
+  }, [userId]);
 
-  return { session, username, ready };
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  return { session, profile, username: profile?.username ?? null, ready, refreshProfile: loadProfile };
 }
