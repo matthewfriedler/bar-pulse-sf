@@ -1,8 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
+import { parseSettings, type AppSettings } from "@/lib/settings";
 import {
   CHECKIN_WINDOW_MINUTES,
   computeConsensus,
@@ -10,6 +11,7 @@ import {
   type BarUpdate,
   type Consensus,
 } from "@/lib/barpulse";
+
 
 export interface LatestUpdate extends BarUpdate {
   username: string;
