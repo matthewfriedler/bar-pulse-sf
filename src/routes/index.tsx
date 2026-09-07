@@ -165,23 +165,18 @@ function Index() {
           </Button>
 
           {session ? (
-            <div className="flex items-center gap-2">
+            <Link
+              to="/account"
+              className="flex items-center gap-2 rounded-full py-1 pr-1 pl-3 transition-colors hover:bg-accent"
+              aria-label="Your account"
+            >
               <span className="hidden text-sm font-medium sm:inline">@{username ?? "you"}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Sign out"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  toast.success("Signed out");
-                }}
-              >
-                <LogOut className="size-5" />
-              </Button>
-            </div>
+              <UserAvatar avatarPath={profile?.avatar_url ?? null} username={username} />
+            </Link>
           ) : (
             <Button onClick={() => setAuthOpen(true)}>Sign in</Button>
           )}
+
         </div>
       </header>
 
