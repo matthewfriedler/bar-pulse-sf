@@ -266,7 +266,7 @@ function PasswordSection() {
     }
     setBusy(true);
     const attrs: Record<string, string> = { password: next };
-    if (current) attrs.current_password = current;
+    if (current) attrs['current_password'] = current;
     const { error } = await supabase.auth.updateUser(attrs as { password: string });
     setBusy(false);
     if (error) {
