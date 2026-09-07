@@ -46,15 +46,17 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { theme, toggle } = useTheme();
+  const { theme, toggle, set: setTheme } = useTheme();
   const { bars, latestByBar, consensusByBar, isLoading, refetchUpdates } = useBarPulse();
-  const { session, username } = useSession();
+  const { session, profile, username, refreshProfile } = useSession();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [reportBar, setReportBar] = useState<Bar | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [, setTick] = useState(0);
+  const settingsApplied = useRef<string | null>(null);
 
   // keep "x min ago" labels honest
   useEffect(() => {
@@ -62,22 +64,49 @@ function Index() {
     return () => clearInterval(id);
   }, []);
 
+  // apply the saved account preferences once per sign-in
+  useEffect(() => {
+    if (!profile || settingsApplied.current === profile.id) return;
+    settingsApplied.current = profile.id;
+    setFilters((f) => ({
+      ...f,
+      neighborhood: profile.settings.defaultNeighborhood,
+      vibe: profile.settings.defaultVibe,
+    }));
+    setTheme(profile.settings.theme);
+  }, [profile, setTheme]);
 
-  const visibleBars = useMemo(
-    () =>
-      bars.filter((bar) => {
-        if (filters.neighborhood !== "all" && bar.neighborhood !== filters.neighborhood)
-          return false;
-        if (filters.vibe !== "all" && bar.vibe !== filters.vibe) return false;
-        if (
-          filters.status !== "all" &&
-          (consensusByBar.get(bar.id)?.status ?? "unknown") !== filters.status
-        )
-          return false;
-        return true;
-      }),
-    [bars, filters, consensusByBar],
-  );
+  const sortByDistance = profile?.settings.sortByDistance ?? false;
+  useEffect(() => {
+    if (!sortByDistance || myPosition || typeof navigator === "undefined" || !navigator.geolocation)
+      return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setMyPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => undefined,
+      { timeout: 15000, maximumAge: 300000 },
+    );
+  }, [sortByDistance, myPosition]);
+
+  const visibleBars = useMemo(() => {
+    const hideUnknown = profile?.settings.hideUnknown ?? false;
+    const list = bars.filter((bar) => {
+      const status = consensusByBar.get(bar.id)?.status ?? "unknown";
+      if (filters.neighborhood !== "all" && bar.neighborhood !== filters.neighborhood) return false;
+      if (filters.vibe !== "all" && bar.vibe !== filters.vibe) return false;
+      if (filters.status !== "all" && status !== filters.status) return false;
+      if (hideUnknown && status === "unknown") return false;
+      return true;
+    });
+    if (sortByDistance && myPosition) {
+      return [...list].sort(
+        (a, b) =>
+          distanceMeters(myPosition, { lat: a.lat, lng: a.lng }) -
+          distanceMeters(myPosition, { lat: b.lat, lng: b.lng }),
+      );
+    }
+    return list;
+  }, [bars, filters, consensusByBar, profile, sortByDistance, myPosition]);
+
 
   const counts = useMemo(() => {
     const c = { clear: 0, busy: 0, packed: 0, unknown: 0 };
