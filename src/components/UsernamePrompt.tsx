@@ -51,7 +51,7 @@ export function UsernamePrompt({ open, userId, suggested, onDone }: Props) {
 
   return (
     <Dialog open={open}>
-      <DialogContent className="sm:max-w-sm" showCloseButton={false}>
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">Pick your username</DialogTitle>
           <DialogDescription>
