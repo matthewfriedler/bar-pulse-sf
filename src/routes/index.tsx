@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Activity, LogOut, Moon, Sun } from "lucide-react";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Activity, Moon, Sun } from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthDialog } from "@/components/AuthDialog";
 import { BarCard } from "@/components/BarCard";
 import { DEFAULT_FILTERS, FilterBar, type Filters } from "@/components/FilterBar";
 import { UpdateDialog } from "@/components/UpdateDialog";
+import { UserAvatar } from "@/components/UserAvatar";
+import { UsernamePrompt } from "@/components/UsernamePrompt";
 import { Button } from "@/components/ui/button";
 import { useBarPulse, useSession } from "@/hooks/useBarPulse";
 import { useTheme } from "@/hooks/useTheme";
@@ -17,6 +19,7 @@ import {
   distanceMeters,
   type Bar,
 } from "@/lib/barpulse";
+
 
 const BarMap = lazy(() => import("@/components/BarMap"));
 
@@ -43,15 +46,17 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const { theme, toggle } = useTheme();
+  const { theme, toggle, set: setTheme } = useTheme();
   const { bars, latestByBar, consensusByBar, isLoading, refetchUpdates } = useBarPulse();
-  const { session, username } = useSession();
+  const { session, profile, username, refreshProfile } = useSession();
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [reportBar, setReportBar] = useState<Bar | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [, setTick] = useState(0);
+  const settingsApplied = useRef<string | null>(null);
 
   // keep "x min ago" labels honest
   useEffect(() => {
@@ -59,22 +64,49 @@ function Index() {
     return () => clearInterval(id);
   }, []);
 
+  // apply the saved account preferences once per sign-in
+  useEffect(() => {
+    if (!profile || settingsApplied.current === profile.id) return;
+    settingsApplied.current = profile.id;
+    setFilters((f) => ({
+      ...f,
+      neighborhood: profile.settings.defaultNeighborhood,
+      vibe: profile.settings.defaultVibe,
+    }));
+    setTheme(profile.settings.theme);
+  }, [profile, setTheme]);
 
-  const visibleBars = useMemo(
-    () =>
-      bars.filter((bar) => {
-        if (filters.neighborhood !== "all" && bar.neighborhood !== filters.neighborhood)
-          return false;
-        if (filters.vibe !== "all" && bar.vibe !== filters.vibe) return false;
-        if (
-          filters.status !== "all" &&
-          (consensusByBar.get(bar.id)?.status ?? "unknown") !== filters.status
-        )
-          return false;
-        return true;
-      }),
-    [bars, filters, consensusByBar],
-  );
+  const sortByDistance = profile?.settings.sortByDistance ?? false;
+  useEffect(() => {
+    if (!sortByDistance || myPosition || typeof navigator === "undefined" || !navigator.geolocation)
+      return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setMyPosition({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => undefined,
+      { timeout: 15000, maximumAge: 300000 },
+    );
+  }, [sortByDistance, myPosition]);
+
+  const visibleBars = useMemo(() => {
+    const hideUnknown = profile?.settings.hideUnknown ?? false;
+    const list = bars.filter((bar) => {
+      const status = consensusByBar.get(bar.id)?.status ?? "unknown";
+      if (filters.neighborhood !== "all" && bar.neighborhood !== filters.neighborhood) return false;
+      if (filters.vibe !== "all" && bar.vibe !== filters.vibe) return false;
+      if (filters.status !== "all" && status !== filters.status) return false;
+      if (hideUnknown && status === "unknown") return false;
+      return true;
+    });
+    if (sortByDistance && myPosition) {
+      return [...list].sort(
+        (a, b) =>
+          distanceMeters(myPosition, { lat: a.lat, lng: a.lng }) -
+          distanceMeters(myPosition, { lat: b.lat, lng: b.lng }),
+      );
+    }
+    return list;
+  }, [bars, filters, consensusByBar, profile, sortByDistance, myPosition]);
+
 
   const counts = useMemo(() => {
     const c = { clear: 0, busy: 0, packed: 0, unknown: 0 };
@@ -165,23 +197,18 @@ function Index() {
           </Button>
 
           {session ? (
-            <div className="flex items-center gap-2">
+            <Link
+              to="/account"
+              className="flex items-center gap-2 rounded-full py-1 pr-1 pl-3 transition-colors hover:bg-accent"
+              aria-label="Your account"
+            >
               <span className="hidden text-sm font-medium sm:inline">@{username ?? "you"}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Sign out"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  toast.success("Signed out");
-                }}
-              >
-                <LogOut className="size-5" />
-              </Button>
-            </div>
+              <UserAvatar avatarPath={profile?.avatar_url ?? null} username={username} />
+            </Link>
           ) : (
             <Button onClick={() => setAuthOpen(true)}>Sign in</Button>
           )}
+
         </div>
       </header>
 
@@ -243,12 +270,21 @@ function Index() {
       </main>
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      {profile && !profile.username_confirmed && (
+        <UsernamePrompt
+          open
+          userId={profile.id}
+          suggested={profile.username}
+          onDone={() => void refreshProfile()}
+        />
+      )}
       <UpdateDialog
         bar={reportBar}
         userId={session?.user.id ?? null}
         onOpenChange={(open) => !open && setReportBar(null)}
         onPosted={() => void refetchUpdates()}
       />
+
     </div>
   );
 }
