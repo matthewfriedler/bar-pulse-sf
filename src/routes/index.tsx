@@ -270,12 +270,21 @@ function Index() {
       </main>
 
       <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
+      {profile && !profile.username_confirmed && (
+        <UsernamePrompt
+          open
+          userId={profile.id}
+          suggested={profile.username}
+          onDone={() => void refreshProfile()}
+        />
+      )}
       <UpdateDialog
         bar={reportBar}
         userId={session?.user.id ?? null}
         onOpenChange={(open) => !open && setReportBar(null)}
         onPosted={() => void refetchUpdates()}
       />
+
     </div>
   );
 }
