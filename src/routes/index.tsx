@@ -1,12 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Activity, LogOut, Moon, Sun } from "lucide-react";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Activity, Moon, Sun } from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthDialog } from "@/components/AuthDialog";
 import { BarCard } from "@/components/BarCard";
 import { DEFAULT_FILTERS, FilterBar, type Filters } from "@/components/FilterBar";
 import { UpdateDialog } from "@/components/UpdateDialog";
+import { UserAvatar } from "@/components/UserAvatar";
+import { UsernamePrompt } from "@/components/UsernamePrompt";
 import { Button } from "@/components/ui/button";
 import { useBarPulse, useSession } from "@/hooks/useBarPulse";
 import { useTheme } from "@/hooks/useTheme";
@@ -17,6 +19,7 @@ import {
   distanceMeters,
   type Bar,
 } from "@/lib/barpulse";
+
 
 const BarMap = lazy(() => import("@/components/BarMap"));
 
