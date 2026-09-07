@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSession } from "@/hooks/useBarPulse";
 import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/integrations/supabase/client";
-import { NEIGHBORHOODS, VIBES } from "@/lib/barpulse";
+import { VIBES } from "@/lib/barpulse";
 import { DEFAULT_SETTINGS, type AppSettings } from "@/lib/settings";
 
 export const Route = createFileRoute("/account")({
@@ -354,7 +354,7 @@ function SettingsSection({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All neighborhoods</SelectItem>
-            {NEIGHBORHOODS.map((n) => (
+            {(["Marina", "Cow Hollow"] as const).map((n) => (
               <SelectItem key={n} value={n}>
                 {n}
               </SelectItem>
