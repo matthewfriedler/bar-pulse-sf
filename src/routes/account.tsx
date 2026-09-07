@@ -265,11 +265,9 @@ function PasswordSection() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.updateUser({
-      password: next,
-      // @ts-expect-error current_password is accepted by Lovable Cloud auth
-      current_password: current || undefined,
-    });
+    const attrs: Record<string, string> = { password: next };
+    if (current) attrs.current_password = current;
+    const { error } = await supabase.auth.updateUser(attrs as { password: string });
     setBusy(false);
     if (error) {
       toast.error(error.message);
@@ -330,7 +328,7 @@ function SettingsSection({
 
   async function save() {
     setBusy(true);
-    const { error } = await supabase.from("profiles").update({ settings: draft }).eq("id", userId);
+    const { error } = await supabase.from("profiles").update({ settings: draft as unknown as Record<string, never> }).eq("id", userId);
     setBusy(false);
     if (error) {
       toast.error(error.message);
