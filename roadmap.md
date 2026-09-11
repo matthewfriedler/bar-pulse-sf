@@ -6,6 +6,11 @@
   - [x] Consensus engine: recency-decayed, owner-weighted blend of recent reports
   - [x] Confidence indicator + trend arrow
   - [x] Live crowd count from check-ins on bar cards
+- [x] Accounts
+  - [x] Google sign-in plus username/password option
+  - [x] First-login username prompt
+  - [x] Account page: username, profile picture, password, app settings
+
 
 ## Later
 - [ ] PWA / add-to-home-screen support
