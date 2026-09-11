@@ -140,6 +140,12 @@ export function statusFor(update?: BarUpdate | null): StatusKey {
 
 export type Confidence = "none" | "low" | "medium" | "high";
 
+/** Where the number on screen came from. */
+export type Basis = "live" | "estimate" | "closed" | "none";
+
+/** Confirmations older than this stop counting. */
+export const CONFIRMATION_WINDOW_MINUTES = 90;
+
 export interface Consensus {
   /** Recency-weighted capacity across every recent report, 0-100. */
   capacity: number | null;
@@ -158,6 +164,18 @@ export interface Consensus {
   latest: BarUpdate | null;
   /** Direction of travel vs. the older half of the window. */
   trend: "rising" | "falling" | "steady" | null;
+  basis: Basis;
+  agrees: number;
+  disputes: number;
+  /** How many past readings the estimate is based on, when basis is "estimate". */
+  baselineSamples: number;
+}
+
+export interface ConsensusInput {
+  checkedIn?: number;
+  confirmations?: ReadingConfirmation[];
+  baseline?: Baseline | null;
+  place?: PlaceInfo | null;
 }
 
 function decayWeight(iso: string): number {
@@ -165,9 +183,16 @@ function decayWeight(iso: string): number {
   return Math.pow(0.5, mins / CONSENSUS_HALF_LIFE_MINUTES);
 }
 
-function confidenceFor(contributors: number, checkedIn: number, ownerBacked: boolean): Confidence {
+function confidenceFor(
+  contributors: number,
+  checkedIn: number,
+  ownerBacked: boolean,
+  agrees = 0,
+  disputes = 0,
+): Confidence {
   if (contributors === 0) return "none";
-  const signal = contributors + checkedIn * 0.5 + (ownerBacked ? 2 : 0);
+  const signal =
+    contributors + checkedIn * 0.5 + (ownerBacked ? 2 : 0) + agrees * 0.75 - disputes * 1.5;
   if (signal >= 5) return "high";
   if (signal >= 2.5) return "medium";
   return "low";
@@ -176,12 +201,22 @@ function confidenceFor(contributors: number, checkedIn: number, ownerBacked: boo
 /**
  * Blends every recent report for one bar into a single live reading instead of
  * trusting whoever happened to post last. Newer reports and staff reports carry
- * more weight; on-site check-ins raise confidence in the number.
+ * more weight; on-site check-ins and confirmations raise confidence, disputes
+ * knock it down. With no live signal at all we fall back to the bar's own
+ * history for this day and hour, clearly flagged as an estimate.
  */
 export function computeConsensus(
   updates: BarUpdate[],
-  checkedIn = 0,
+  input: ConsensusInput | number = {},
 ): Consensus {
+  const opts: ConsensusInput = typeof input === "number" ? { checkedIn: input } : input;
+  const checkedIn = opts.checkedIn ?? 0;
+  const recentConfirmations = (opts.confirmations ?? []).filter(
+    (c) => minutesAgo(c.created_at) < CONFIRMATION_WINDOW_MINUTES,
+  );
+  const agrees = recentConfirmations.filter((c) => c.agrees).length;
+  const disputes = recentConfirmations.filter((c) => !c.agrees).length;
+
   const sorted = [...updates].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
@@ -189,17 +224,25 @@ export function computeConsensus(
   const recent = sorted.filter((u) => minutesAgo(u.created_at) < CONSENSUS_WINDOW_MINUTES);
 
   if (recent.length === 0) {
+    const closed = opts.place?.open_now === false;
+    const baseline = opts.baseline ?? null;
+    const estimate = !closed && baseline && baseline.samples >= 3 ? baseline : null;
+    const capacity = estimate ? Math.round(Number(estimate.avg_capacity)) : null;
     return {
-      capacity: null,
-      waitMinutes: null,
-      status: "unknown",
+      capacity,
+      waitMinutes: estimate ? Math.round(Number(estimate.avg_wait)) : null,
+      status: closed ? "unknown" : statusForCapacity(capacity),
       reports: 0,
       contributors: 0,
       checkedIn,
       ownerBacked: false,
-      confidence: confidenceFor(0, checkedIn, false),
+      confidence: "none",
       latest,
       trend: null,
+      basis: closed ? "closed" : estimate ? "estimate" : "none",
+      agrees,
+      disputes,
+      baselineSamples: estimate?.samples ?? 0,
     };
   }
 
@@ -210,15 +253,22 @@ export function computeConsensus(
   let ownerBacked = false;
 
   for (const u of recent) {
-    const w = decayWeight(u.created_at) * (u.is_owner ? OWNER_WEIGHT : 1);
+    const staff = u.is_owner || u.source === "staff";
+    const w = decayWeight(u.created_at) * (staff ? OWNER_WEIGHT : 1);
     weightSum += w;
     capacitySum += u.capacity * w;
     waitSum += u.wait_minutes * w;
     people.add(u.user_id);
-    if (u.is_owner) ownerBacked = true;
+    if (staff) ownerBacked = true;
   }
 
-  const capacity = Math.round(capacitySum / weightSum);
+  let capacity = Math.round(capacitySum / weightSum);
+
+  // Disputes that say which way it's off nudge the number toward the crowd.
+  const nudge = recentConfirmations
+    .filter((c) => !c.agrees && c.direction)
+    .reduce((sum, c) => sum + (c.direction === "busier" ? 6 : -6) * decayWeight(c.created_at), 0);
+  if (nudge !== 0) capacity = Math.max(0, Math.min(100, Math.round(capacity + nudge)));
 
   const half = CONSENSUS_WINDOW_MINUTES / 2;
   const fresh = recent.filter((u) => minutesAgo(u.created_at) < half);
@@ -239,11 +289,21 @@ export function computeConsensus(
     contributors: people.size,
     checkedIn,
     ownerBacked,
-    confidence: confidenceFor(people.size, checkedIn, ownerBacked),
+    confidence: confidenceFor(people.size, checkedIn, ownerBacked, agrees, disputes),
     latest,
     trend,
+    basis: "live",
+    agrees,
+    disputes,
+    baselineSamples: 0,
   };
 }
+
+/** Local day-of-week and hour used to look up a bar's historical baseline. */
+export function currentSlot(now = new Date()): { dow: number; hour: number } {
+  return { dow: now.getDay(), hour: now.getHours() };
+}
+
 
 export const CONFIDENCE_META: Record<Confidence, { label: string; blurb: string }> = {
   none: { label: "No signal", blurb: "Nobody has reported in the last 2 hours" },
