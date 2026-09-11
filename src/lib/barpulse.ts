@@ -33,6 +33,8 @@ export interface Bar {
   lng: number;
 }
 
+export type ReadingSource = "patron" | "staff" | "correction";
+
 export interface BarUpdate {
   id: string;
   bar_id: string;
@@ -41,8 +43,37 @@ export interface BarUpdate {
   wait_minutes: number;
   vibe_note: string | null;
   is_owner: boolean;
+  source: ReadingSource;
+  door_count: number | null;
   created_at: string;
 }
+
+export interface ReadingConfirmation {
+  id: string;
+  bar_id: string;
+  update_id: string | null;
+  user_id: string;
+  agrees: boolean;
+  direction: "quieter" | "busier" | null;
+  created_at: string;
+}
+
+export interface Baseline {
+  bar_id: string;
+  dow: number;
+  hour: number;
+  avg_capacity: number;
+  avg_wait: number;
+  samples: number;
+}
+
+export interface PlaceInfo {
+  bar_id: string;
+  open_now: boolean | null;
+  rating: number | null;
+  user_rating_count: number | null;
+}
+
 
 export type StatusKey = "clear" | "busy" | "packed" | "unknown";
 
