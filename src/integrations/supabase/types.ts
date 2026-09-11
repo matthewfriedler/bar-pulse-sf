@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      bar_baselines: {
+        Row: {
+          avg_capacity: number
+          avg_wait: number
+          bar_id: string
+          dow: number
+          hour: number
+          samples: number
+          updated_at: string
+        }
+        Insert: {
+          avg_capacity: number
+          avg_wait?: number
+          bar_id: string
+          dow: number
+          hour: number
+          samples?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_capacity?: number
+          avg_wait?: number
+          bar_id?: string
+          dow?: number
+          hour?: number
+          samples?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bar_baselines_bar_id_fkey"
+            columns: ["bar_id"]
+            isOneToOne: false
+            referencedRelation: "bars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bar_checkins: {
         Row: {
           accuracy_meters: number | null
@@ -46,13 +84,139 @@ export type Database = {
           },
         ]
       }
+      bar_place_cache: {
+        Row: {
+          bar_id: string
+          fetched_at: string
+          hours: Json | null
+          open_now: boolean | null
+          place_id: string | null
+          rating: number | null
+          user_rating_count: number | null
+        }
+        Insert: {
+          bar_id: string
+          fetched_at?: string
+          hours?: Json | null
+          open_now?: boolean | null
+          place_id?: string | null
+          rating?: number | null
+          user_rating_count?: number | null
+        }
+        Update: {
+          bar_id?: string
+          fetched_at?: string
+          hours?: Json | null
+          open_now?: boolean | null
+          place_id?: string | null
+          rating?: number | null
+          user_rating_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bar_place_cache_bar_id_fkey"
+            columns: ["bar_id"]
+            isOneToOne: true
+            referencedRelation: "bars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bar_reading_confirmations: {
+        Row: {
+          agrees: boolean
+          bar_id: string
+          created_at: string
+          direction: string | null
+          id: string
+          update_id: string | null
+          user_id: string
+        }
+        Insert: {
+          agrees: boolean
+          bar_id: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          update_id?: string | null
+          user_id: string
+        }
+        Update: {
+          agrees?: boolean
+          bar_id?: string
+          created_at?: string
+          direction?: string | null
+          id?: string
+          update_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bar_reading_confirmations_bar_id_fkey"
+            columns: ["bar_id"]
+            isOneToOne: false
+            referencedRelation: "bars"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bar_reading_confirmations_update_id_fkey"
+            columns: ["update_id"]
+            isOneToOne: false
+            referencedRelation: "bar_updates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bar_staff: {
+        Row: {
+          bar_id: string
+          created_at: string
+          id: string
+          note: string | null
+          role: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bar_id: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bar_id?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bar_staff_bar_id_fkey"
+            columns: ["bar_id"]
+            isOneToOne: false
+            referencedRelation: "bars"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bar_updates: {
         Row: {
           bar_id: string
           capacity: number
           created_at: string
+          door_count: number | null
           id: string
           is_owner: boolean
+          source: string
           user_id: string
           vibe_note: string | null
           wait_minutes: number
@@ -61,8 +225,10 @@ export type Database = {
           bar_id: string
           capacity: number
           created_at?: string
+          door_count?: number | null
           id?: string
           is_owner?: boolean
+          source?: string
           user_id: string
           vibe_note?: string | null
           wait_minutes: number
@@ -71,8 +237,10 @@ export type Database = {
           bar_id?: string
           capacity?: number
           created_at?: string
+          door_count?: number | null
           id?: string
           is_owner?: boolean
+          source?: string
           user_id?: string
           vibe_note?: string | null
           wait_minutes?: number
@@ -90,6 +258,7 @@ export type Database = {
       bars: {
         Row: {
           address: string
+          google_place_id: string | null
           id: string
           lat: number
           lng: number
@@ -99,6 +268,7 @@ export type Database = {
         }
         Insert: {
           address: string
+          google_place_id?: string | null
           id: string
           lat: number
           lng: number
@@ -108,6 +278,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          google_place_id?: string | null
           id?: string
           lat?: number
           lng?: number
@@ -144,15 +315,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_approved_staff: {
+        Args: { _bar_id: string; _user_id: string }
+        Returns: boolean
+      }
+      refresh_bar_baselines: { Args: never; Returns: number }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -279,6 +482,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
