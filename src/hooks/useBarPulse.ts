@@ -6,10 +6,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { parseSettings, type AppSettings } from "@/lib/settings";
 import {
   CHECKIN_WINDOW_MINUTES,
+  CONFIRMATION_WINDOW_MINUTES,
   computeConsensus,
+  currentSlot,
   type Bar,
+  type Baseline,
   type BarUpdate,
   type Consensus,
+  type PlaceInfo,
+  type ReadingConfirmation,
 } from "@/lib/barpulse";
 
 
@@ -56,6 +61,36 @@ async function fetchCheckins(): Promise<Map<string, number>> {
   return new Map([...perBar].map(([barId, people]) => [barId, people.size]));
 }
 
+async function fetchConfirmations(): Promise<ReadingConfirmation[]> {
+  const since = new Date(Date.now() - CONFIRMATION_WINDOW_MINUTES * 60_000).toISOString();
+  const { data, error } = await supabase
+    .from("bar_reading_confirmations")
+    .select("*")
+    .gte("created_at", since)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as ReadingConfirmation[];
+}
+
+async function fetchBaselines(): Promise<Baseline[]> {
+  const { dow, hour } = currentSlot();
+  const { data, error } = await supabase
+    .from("bar_baselines")
+    .select("*")
+    .eq("dow", dow)
+    .eq("hour", hour);
+  if (error) throw error;
+  return (data ?? []) as unknown as Baseline[];
+}
+
+async function fetchPlaceInfo(): Promise<PlaceInfo[]> {
+  const { data, error } = await supabase
+    .from("bar_place_cache")
+    .select("bar_id, open_now, rating, user_rating_count");
+  if (error) throw error;
+  return (data ?? []) as unknown as PlaceInfo[];
+}
+
 export function useBarPulse() {
   const queryClient = useQueryClient();
 
@@ -69,6 +104,21 @@ export function useBarPulse() {
     queryKey: ["bar_checkins"],
     queryFn: fetchCheckins,
     refetchInterval: 60_000,
+  });
+  const confirmationsQuery = useQuery({
+    queryKey: ["bar_confirmations"],
+    queryFn: fetchConfirmations,
+    refetchInterval: 45_000,
+  });
+  const baselinesQuery = useQuery({
+    queryKey: ["bar_baselines", currentSlot().hour],
+    queryFn: fetchBaselines,
+    staleTime: 10 * 60_000,
+  });
+  const placeQuery = useQuery({
+    queryKey: ["bar_place_cache"],
+    queryFn: fetchPlaceInfo,
+    staleTime: 15 * 60_000,
   });
 
   useEffect(() => {
@@ -86,6 +136,13 @@ export function useBarPulse() {
         { event: "INSERT", schema: "public", table: "bar_checkins" },
         () => {
           void queryClient.invalidateQueries({ queryKey: ["bar_checkins"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "bar_reading_confirmations" },
+        () => {
+          void queryClient.invalidateQueries({ queryKey: ["bar_confirmations"] });
         },
       )
       .subscribe();
@@ -109,6 +166,15 @@ export function useBarPulse() {
       list.push(u);
       grouped.set(u.bar_id, list);
     }
+    const confirmationsByBar = new Map<string, ReadingConfirmation[]>();
+    for (const c of confirmationsQuery.data ?? []) {
+      const list = confirmationsByBar.get(c.bar_id) ?? [];
+      list.push(c);
+      confirmationsByBar.set(c.bar_id, list);
+    }
+    const baselineByBar = new Map((baselinesQuery.data ?? []).map((b) => [b.bar_id, b]));
+    const placeByBar = new Map((placeQuery.data ?? []).map((p) => [p.bar_id, p]));
+
     const map = new Map<string, Consensus>();
     const barIds = new Set([
       ...(barsQuery.data ?? []).map((b) => b.id),
@@ -117,11 +183,23 @@ export function useBarPulse() {
     for (const id of barIds) {
       map.set(
         id,
-        computeConsensus(grouped.get(id) ?? [], checkinsQuery.data?.get(id) ?? 0),
+        computeConsensus(grouped.get(id) ?? [], {
+          checkedIn: checkinsQuery.data?.get(id) ?? 0,
+          confirmations: confirmationsByBar.get(id) ?? [],
+          baseline: baselineByBar.get(id) ?? null,
+          place: placeByBar.get(id) ?? null,
+        }),
       );
     }
     return map;
-  }, [updatesQuery.data, checkinsQuery.data, barsQuery.data]);
+  }, [
+    updatesQuery.data,
+    checkinsQuery.data,
+    barsQuery.data,
+    confirmationsQuery.data,
+    baselinesQuery.data,
+    placeQuery.data,
+  ]);
 
   return {
     bars: barsQuery.data ?? [],
@@ -131,9 +209,11 @@ export function useBarPulse() {
     refetchUpdates: () => {
       void queryClient.invalidateQueries({ queryKey: ["bar_updates"] });
       void queryClient.invalidateQueries({ queryKey: ["bar_checkins"] });
+      void queryClient.invalidateQueries({ queryKey: ["bar_confirmations"] });
     },
   };
 }
+
 
 export interface Profile {
   id: string;
