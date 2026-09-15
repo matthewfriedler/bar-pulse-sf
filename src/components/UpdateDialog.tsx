@@ -236,18 +236,42 @@ export function UpdateDialog({ bar, userId, onOpenChange, onPosted }: Props) {
                   </div>
                 </div>
 
-                <label className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm">
-                  <Checkbox
-                    checked={isOwner}
-                    onCheckedChange={(c) => setIsOwner(c === true)}
-                  />
-                  <span>
-                    <span className="font-medium">I work here</span>
-                    <span className="block text-muted-foreground">
-                      Posts this as an official owner update.
-                    </span>
-                  </span>
-                </label>
+                {isStaff ? (
+                  <>
+                    <label className="flex items-center gap-3 rounded-2xl border border-border p-3 text-sm">
+                      <Checkbox
+                        checked={asStaff}
+                        onCheckedChange={(c) => setAsStaff(c === true)}
+                      />
+                      <span>
+                        <span className="font-medium">Post as verified staff</span>
+                        <span className="block text-muted-foreground">
+                          Your reading carries more weight than a patron's.
+                        </span>
+                      </span>
+                    </label>
+                    {asStaff && (
+                      <div className="space-y-2">
+                        <Label htmlFor="door-count">Heads inside right now (optional)</Label>
+                        <Input
+                          id="door-count"
+                          inputMode="numeric"
+                          placeholder="e.g. 120"
+                          value={doorCount}
+                          onChange={(e) => setDoorCount(e.target.value.replace(/\D/g, ""))}
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="rounded-2xl border border-dashed border-border p-3 text-sm text-muted-foreground">
+                    Work here? <Link to="/staff" className="font-medium text-primary underline">
+                      Ask to be verified
+                    </Link>{" "}
+                    and your readings will count for more.
+                  </p>
+                )}
+
 
                 <Button className="w-full" onClick={submit} disabled={saving}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : "Post update"}
