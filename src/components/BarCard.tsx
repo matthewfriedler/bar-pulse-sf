@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { ConfirmRow, type ConfirmVote } from "@/components/ConfirmRow";
 import { Button } from "@/components/ui/button";
 import type { LatestUpdate } from "@/hooks/useBarPulse";
 import {
