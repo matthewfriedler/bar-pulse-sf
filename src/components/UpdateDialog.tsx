@@ -35,18 +35,21 @@ type GeoState =
 interface Props {
   bar: Bar | null;
   userId: string | null;
+  /** True when this user is an approved staff member at this bar. */
+  isStaff?: boolean;
   onOpenChange: (open: boolean) => void;
   onPosted: () => void;
 }
 
 const WAITS = [0, 5, 10, 15, 20, 30, 45, 60];
 
-export function UpdateDialog({ bar, userId, onOpenChange, onPosted }: Props) {
+export function UpdateDialog({ bar, userId, isStaff = false, onOpenChange, onPosted }: Props) {
   const [geo, setGeo] = useState<GeoState>({ phase: "idle" });
   const [capacity, setCapacity] = useState(50);
   const [wait, setWait] = useState(0);
   const [note, setNote] = useState<string | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
+  const [asStaff, setAsStaff] = useState(false);
+  const [doorCount, setDoorCount] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -55,8 +58,9 @@ export function UpdateDialog({ bar, userId, onOpenChange, onPosted }: Props) {
     setCapacity(50);
     setWait(0);
     setNote(null);
-    setIsOwner(false);
-  }, [bar]);
+    setAsStaff(isStaff);
+    setDoorCount("");
+  }, [bar, isStaff]);
 
   function verifyLocation() {
     if (!bar) return;
@@ -92,6 +96,7 @@ export function UpdateDialog({ bar, userId, onOpenChange, onPosted }: Props) {
 
   async function submit() {
     if (!bar || !userId || geo.phase !== "ok") return;
+    const staffReading = isStaff && asStaff;
     setSaving(true);
     const { error } = await supabase.from("bar_updates").insert({
       bar_id: bar.id,
@@ -99,7 +104,9 @@ export function UpdateDialog({ bar, userId, onOpenChange, onPosted }: Props) {
       capacity,
       wait_minutes: wait,
       vibe_note: note,
-      is_owner: isOwner,
+      is_owner: staffReading,
+      source: staffReading ? "staff" : "patron",
+      door_count: staffReading && doorCount ? Number(doorCount) : null,
     });
     setSaving(false);
     if (error) {
@@ -110,6 +117,7 @@ export function UpdateDialog({ bar, userId, onOpenChange, onPosted }: Props) {
     onPosted();
     onOpenChange(false);
   }
+
 
   const preview = STATUS_META[statusFor({ capacity } as never)];
 
