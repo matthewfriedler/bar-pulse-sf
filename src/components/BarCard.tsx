@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 
+import { ConfirmRow, type ConfirmVote } from "@/components/ConfirmRow";
 import { Button } from "@/components/ui/button";
 import type { LatestUpdate } from "@/hooks/useBarPulse";
 import {
@@ -26,9 +27,11 @@ interface Props {
   consensus: Consensus | undefined;
   active: boolean;
   checkingIn: boolean;
+  confirming: boolean;
   onSelect: () => void;
   onReport: () => void;
   onCheckIn: () => void;
+  onConfirm: (vote: ConfirmVote) => void;
 }
 
 export function BarCard({
@@ -37,14 +40,18 @@ export function BarCard({
   consensus,
   active,
   checkingIn,
+  confirming,
   onSelect,
   onReport,
   onCheckIn,
+  onConfirm,
 }: Props) {
   const status = STATUS_META[consensus?.status ?? "unknown"];
   const stale = update ? isStale(update.created_at) : false;
   const capacity = consensus?.capacity ?? null;
   const confidence = CONFIDENCE_META[consensus?.confidence ?? "none"];
+  const basis = consensus?.basis ?? "none";
+
 
   return (
     <article
@@ -111,28 +118,44 @@ export function BarCard({
             )}
           </div>
 
-          <p className="mt-2 text-xs text-muted-foreground" title={confidence.blurb}>
-            <span
-              className={cn(
-                "font-medium",
-                consensus.confidence === "high" && "text-status-clear",
-                consensus.confidence === "low" && "text-status-busy",
+          {basis === "estimate" ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              <span className="font-medium text-secondary">Estimated</span> from how busy
+              this bar usually is right now
+              {consensus.baselineSamples > 0 &&
+                ` (${consensus.baselineSamples} past report${consensus.baselineSamples === 1 ? "" : "s"})`}
+              . Nobody has reported in the last 2 hours.
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground" title={confidence.blurb}>
+              <span
+                className={cn(
+                  "font-medium",
+                  consensus.confidence === "high" && "text-status-clear",
+                  consensus.confidence === "low" && "text-status-busy",
+                )}
+              >
+                {confidence.label}
+              </span>{" "}
+              · {consensus.reports} report{consensus.reports === 1 ? "" : "s"} from{" "}
+              {consensus.contributors} {consensus.contributors === 1 ? "person" : "people"}
+              {consensus.ownerBacked && (
+                <span className="font-semibold text-primary"> · staff confirmed</span>
               )}
-            >
-              {confidence.label}
-            </span>{" "}
-            · {consensus.reports} report{consensus.reports === 1 ? "" : "s"} from{" "}
-            {consensus.contributors} {consensus.contributors === 1 ? "person" : "people"}
-            {consensus.ownerBacked && (
-              <span className="font-semibold text-primary"> · staff confirmed</span>
-            )}
-          </p>
+              {(consensus.agrees > 0 || consensus.disputes > 0) && (
+                <span>
+                  {" "}
+                  · {consensus.agrees} confirmed, {consensus.disputes} disputed
+                </span>
+              )}
+            </p>
+          )}
 
-          {update && (
+          {update && basis === "live" && (
             <p className="mt-1 text-xs text-muted-foreground">
               Last:{" "}
-              {update.is_owner ? (
-                <span className="font-semibold text-primary">Owner update</span>
+              {update.is_owner || update.source === "staff" ? (
+                <span className="font-semibold text-primary">Staff update</span>
               ) : (
                 <span className="font-medium">@{update.username}</span>
               )}
@@ -147,11 +170,16 @@ export function BarCard({
         </>
       ) : (
         <p className="mt-3 text-xs text-muted-foreground">
-          {consensus && consensus.checkedIn > 0
-            ? `${consensus.checkedIn} checked in, but nobody has rated the crowd yet.`
-            : `No live signal tonight — ${bar.address}`}
+          {basis === "closed"
+            ? "Closed right now, according to Google."
+            : consensus && consensus.checkedIn > 0
+              ? `${consensus.checkedIn} checked in, but nobody has rated the crowd yet.`
+              : `No live signal tonight — ${bar.address}`}
         </p>
       )}
+
+      <ConfirmRow consensus={consensus} busy={confirming} onVote={onConfirm} />
+
 
       <div className="mt-3 flex gap-2">
         <Button
