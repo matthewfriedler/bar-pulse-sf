@@ -26,9 +26,11 @@ interface Props {
   consensus: Consensus | undefined;
   active: boolean;
   checkingIn: boolean;
+  confirming: boolean;
   onSelect: () => void;
   onReport: () => void;
   onCheckIn: () => void;
+  onConfirm: (vote: ConfirmVote) => void;
 }
 
 export function BarCard({
@@ -37,14 +39,18 @@ export function BarCard({
   consensus,
   active,
   checkingIn,
+  confirming,
   onSelect,
   onReport,
   onCheckIn,
+  onConfirm,
 }: Props) {
   const status = STATUS_META[consensus?.status ?? "unknown"];
   const stale = update ? isStale(update.created_at) : false;
   const capacity = consensus?.capacity ?? null;
   const confidence = CONFIDENCE_META[consensus?.confidence ?? "none"];
+  const basis = consensus?.basis ?? "none";
+
 
   return (
     <article
