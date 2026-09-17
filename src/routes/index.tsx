@@ -1,16 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Activity, Moon, Sun } from "lucide-react";
+import { Activity, BadgeCheck, Moon, Sun } from "lucide-react";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthDialog } from "@/components/AuthDialog";
 import { BarCard } from "@/components/BarCard";
+import type { ConfirmVote } from "@/components/ConfirmRow";
 import { DEFAULT_FILTERS, FilterBar, type Filters } from "@/components/FilterBar";
 import { UpdateDialog } from "@/components/UpdateDialog";
 import { UserAvatar } from "@/components/UserAvatar";
 import { UsernamePrompt } from "@/components/UsernamePrompt";
 import { Button } from "@/components/ui/button";
 import { useBarPulse, useSession } from "@/hooks/useBarPulse";
+import { useMyStaff } from "@/hooks/useStaff";
 import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -54,6 +56,7 @@ function Index() {
   const [authOpen, setAuthOpen] = useState(false);
   const [reportBar, setReportBar] = useState<Bar | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [, setTick] = useState(0);
   const settingsApplied = useRef<string | null>(null);
