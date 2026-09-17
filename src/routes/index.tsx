@@ -1,16 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Activity, Moon, Sun } from "lucide-react";
+import { Activity, BadgeCheck, Moon, Sun } from "lucide-react";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { AuthDialog } from "@/components/AuthDialog";
 import { BarCard } from "@/components/BarCard";
+import type { ConfirmVote } from "@/components/ConfirmRow";
 import { DEFAULT_FILTERS, FilterBar, type Filters } from "@/components/FilterBar";
 import { UpdateDialog } from "@/components/UpdateDialog";
 import { UserAvatar } from "@/components/UserAvatar";
 import { UsernamePrompt } from "@/components/UsernamePrompt";
 import { Button } from "@/components/ui/button";
 import { useBarPulse, useSession } from "@/hooks/useBarPulse";
+import { useMyStaff } from "@/hooks/useStaff";
 import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -49,11 +51,13 @@ function Index() {
   const { theme, toggle, set: setTheme } = useTheme();
   const { bars, latestByBar, consensusByBar, isLoading, refetchUpdates } = useBarPulse();
   const { session, profile, username, refreshProfile } = useSession();
+  const { approvedBarIds } = useMyStaff(session?.user.id ?? null);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [reportBar, setReportBar] = useState<Bar | null>(null);
   const [checkingInId, setCheckingInId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [myPosition, setMyPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [, setTick] = useState(0);
   const settingsApplied = useRef<string | null>(null);
@@ -175,6 +179,60 @@ function Index() {
     );
   }
 
+  /** GPS-verified "yep / way off" vote on the reading we're showing. */
+  function confirmReading(bar: Bar, vote: ConfirmVote) {
+    setSelectedId(bar.id);
+    if (!session) {
+      toast.info("Create a free account to confirm a reading.");
+      setAuthOpen(true);
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("This device can't share a location, so we can't verify you're at the bar.");
+      return;
+    }
+    setConfirmingId(bar.id);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const distance = distanceMeters(
+          { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          { lat: bar.lat, lng: bar.lng },
+        );
+        if (distance > NEARBY_METERS) {
+          setConfirmingId(null);
+          toast.error(
+            `You're about ${Math.round(distance)} m from ${bar.name} — you have to be there to confirm.`,
+          );
+          return;
+        }
+        const { error } = await supabase.from("bar_reading_confirmations").insert({
+          bar_id: bar.id,
+          user_id: session.user.id,
+          update_id: latestByBar.get(bar.id)?.id ?? null,
+          agrees: vote.agrees,
+          direction: vote.agrees ? null : vote.direction,
+        });
+        setConfirmingId(null);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        toast.success(vote.agrees ? "Thanks — confirmed." : "Thanks — we've nudged the number.");
+        void refetchUpdates();
+      },
+      (err) => {
+        setConfirmingId(null);
+        toast.error(
+          err.code === err.PERMISSION_DENIED
+            ? "Location is blocked. Turn it on for this site to confirm a reading."
+            : "We couldn't get a location fix. Try again in a moment.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+  }
+
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
@@ -192,9 +250,18 @@ function Index() {
             </p>
           </div>
 
+          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+            <Link to="/staff">
+              <BadgeCheck className="size-4" />
+              {approvedBarIds.size > 0 ? "My bar" : "Work at a bar?"}
+            </Link>
+          </Button>
+
           <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle light and dark mode">
             {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
           </Button>
+
+
 
           {session ? (
             <Link
@@ -243,11 +310,14 @@ function Index() {
                 consensus={consensusByBar.get(bar.id)}
                 active={selectedId === bar.id}
                 checkingIn={checkingInId === bar.id}
+                confirming={confirmingId === bar.id}
                 onSelect={() => setSelectedId(bar.id)}
                 onReport={() => requestReport(bar)}
                 onCheckIn={() => checkIn(bar)}
+                onConfirm={(vote) => confirmReading(bar, vote)}
               />
             ))}
+
           </div>
         </section>
 
@@ -281,9 +351,11 @@ function Index() {
       <UpdateDialog
         bar={reportBar}
         userId={session?.user.id ?? null}
+        isStaff={!!reportBar && approvedBarIds.has(reportBar.id)}
         onOpenChange={(open) => !open && setReportBar(null)}
         onPosted={() => void refetchUpdates()}
       />
+
 
     </div>
   );
