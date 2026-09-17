@@ -175,6 +175,60 @@ function Index() {
     );
   }
 
+  /** GPS-verified "yep / way off" vote on the reading we're showing. */
+  function confirmReading(bar: Bar, vote: ConfirmVote) {
+    setSelectedId(bar.id);
+    if (!session) {
+      toast.info("Create a free account to confirm a reading.");
+      setAuthOpen(true);
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("This device can't share a location, so we can't verify you're at the bar.");
+      return;
+    }
+    setConfirmingId(bar.id);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const distance = distanceMeters(
+          { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          { lat: bar.lat, lng: bar.lng },
+        );
+        if (distance > NEARBY_METERS) {
+          setConfirmingId(null);
+          toast.error(
+            `You're about ${Math.round(distance)} m from ${bar.name} — you have to be there to confirm.`,
+          );
+          return;
+        }
+        const { error } = await supabase.from("bar_reading_confirmations").insert({
+          bar_id: bar.id,
+          user_id: session.user.id,
+          update_id: latestByBar.get(bar.id)?.id ?? null,
+          agrees: vote.agrees,
+          direction: vote.agrees ? null : vote.direction,
+        });
+        setConfirmingId(null);
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
+        toast.success(vote.agrees ? "Thanks — confirmed." : "Thanks — we've nudged the number.");
+        void refetchUpdates();
+      },
+      (err) => {
+        setConfirmingId(null);
+        toast.error(
+          err.code === err.PERMISSION_DENIED
+            ? "Location is blocked. Turn it on for this site to confirm a reading."
+            : "We couldn't get a location fix. Try again in a moment.",
+        );
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+    );
+  }
+
+
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
