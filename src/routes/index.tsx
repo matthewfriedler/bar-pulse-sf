@@ -51,6 +51,7 @@ function Index() {
   const { theme, toggle, set: setTheme } = useTheme();
   const { bars, latestByBar, consensusByBar, isLoading, refetchUpdates } = useBarPulse();
   const { session, profile, username, refreshProfile } = useSession();
+  const { approvedBarIds } = useMyStaff(session?.user.id ?? null);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
@@ -249,9 +250,18 @@ function Index() {
             </p>
           </div>
 
+          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+            <Link to="/staff">
+              <BadgeCheck className="size-4" />
+              {approvedBarIds.size > 0 ? "My bar" : "Work at a bar?"}
+            </Link>
+          </Button>
+
           <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle light and dark mode">
             {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
           </Button>
+
+
 
           {session ? (
             <Link
@@ -300,11 +310,14 @@ function Index() {
                 consensus={consensusByBar.get(bar.id)}
                 active={selectedId === bar.id}
                 checkingIn={checkingInId === bar.id}
+                confirming={confirmingId === bar.id}
                 onSelect={() => setSelectedId(bar.id)}
                 onReport={() => requestReport(bar)}
                 onCheckIn={() => checkIn(bar)}
+                onConfirm={(vote) => confirmReading(bar, vote)}
               />
             ))}
+
           </div>
         </section>
 
@@ -338,9 +351,11 @@ function Index() {
       <UpdateDialog
         bar={reportBar}
         userId={session?.user.id ?? null}
+        isStaff={!!reportBar && approvedBarIds.has(reportBar.id)}
         onOpenChange={(open) => !open && setReportBar(null)}
         onPosted={() => void refetchUpdates()}
       />
+
 
     </div>
   );
