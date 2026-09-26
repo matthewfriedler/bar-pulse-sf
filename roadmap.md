@@ -15,7 +15,7 @@
   - [x] Staff dashboard for posting verified readings + head counts
   - [x] "Still accurate?" Yep / Way off confirmations, GPS verified
   - [x] Typical-for-this-hour estimate when nobody has reported
-  - [ ] Google hours failsafe (needs the Google Maps connection)
+  - [x] Google hours failsafe (closed bars never show an estimate)
 
 
 
