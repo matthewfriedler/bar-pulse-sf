@@ -2,7 +2,7 @@ import L from "leaflet";
 import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 
-import { STATUS_META, type Bar, type Consensus } from "@/lib/barpulse";
+import { STATUS_META, type Bar, type Consensus, type PlaceInfo } from "@/lib/barpulse";
 
 const CENTER: [number, number] = [37.7990, -122.4345];
 
@@ -29,11 +29,12 @@ function MapFocus({ target }: { target: [number, number] | null }) {
 interface Props {
   bars: Bar[];
   consensusByBar: Map<string, Consensus>;
+  placeByBar?: Map<string, PlaceInfo>;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export default function BarMap({ bars, consensusByBar, selectedId, onSelect }: Props) {
+export default function BarMap({ bars, consensusByBar, placeByBar, selectedId, onSelect }: Props) {
   const target = useMemo<[number, number] | null>(() => {
     const bar = bars.find((b) => b.id === selectedId);
     return bar ? [bar.lat, bar.lng] : null;
