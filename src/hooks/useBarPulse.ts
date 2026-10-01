@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { refreshPlaceCache } from "@/lib/places.functions";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -203,13 +205,14 @@ export function useBarPulse() {
     barsQuery.data,
     confirmationsQuery.data,
     baselinesQuery.data,
-    placeQuery.data,
+    placeInfoByBar,
   ]);
 
   return {
     bars: barsQuery.data ?? [],
     latestByBar,
     consensusByBar,
+    placeByBar: placeInfoByBar,
     isLoading: barsQuery.isLoading || updatesQuery.isLoading,
     refetchUpdates: () => {
       void queryClient.invalidateQueries({ queryKey: ["bar_updates"] });
