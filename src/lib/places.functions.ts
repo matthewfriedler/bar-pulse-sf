@@ -10,6 +10,9 @@ interface PlaceDetails {
   userRatingCount?: number;
   regularOpeningHours?: { openNow?: boolean; weekdayDescriptions?: string[] };
   currentOpeningHours?: { openNow?: boolean; weekdayDescriptions?: string[] };
+  photos?: Array<{ name?: string }>;
+  websiteUri?: string;
+  nationalPhoneNumber?: string;
 }
 
 function credentials() {
@@ -86,12 +89,29 @@ export const refreshPlaceCache = createServerFn({ method: "POST" })
           {
             method: "GET",
             fieldMask:
-              "id,rating,userRatingCount,regularOpeningHours,currentOpeningHours",
+              "id,rating,userRatingCount,regularOpeningHours,currentOpeningHours,photos,websiteUri,nationalPhoneNumber",
           },
           creds,
         )) as PlaceDetails;
 
         const hours = details.currentOpeningHours ?? details.regularOpeningHours ?? null;
+
+        // One representative photo per bar, resolved to a browser-loadable URL.
+        let photoUrl: string | null = null;
+        const photoName = details.photos?.[0]?.name;
+        if (photoName) {
+          try {
+            const media = (await gateway(
+              `/places/v1/${photoName}/media?maxWidthPx=800&skipHttpRedirect=true`,
+              { method: "GET" },
+              creds,
+            )) as { photoUri?: string };
+            photoUrl = media.photoUri ?? null;
+          } catch {
+            photoUrl = null;
+          }
+        }
+
         await supabaseAdmin.from("bar_place_cache").upsert({
           bar_id: bar.id,
           place_id: placeId,
@@ -99,6 +119,9 @@ export const refreshPlaceCache = createServerFn({ method: "POST" })
           hours: hours ? { weekdayDescriptions: hours.weekdayDescriptions ?? [] } : null,
           rating: details.rating ?? null,
           user_rating_count: details.userRatingCount ?? null,
+          photo_url: photoUrl,
+          website: details.websiteUri ?? null,
+          phone: details.nationalPhoneNumber ?? null,
           fetched_at: new Date().toISOString(),
         });
         updated += 1;
