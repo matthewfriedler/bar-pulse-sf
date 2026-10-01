@@ -86,7 +86,7 @@ async function fetchBaselines(): Promise<Baseline[]> {
 async function fetchPlaceInfo(): Promise<PlaceInfo[]> {
   const { data, error } = await supabase
     .from("bar_place_cache")
-    .select("bar_id, open_now, rating, user_rating_count");
+    .select("bar_id, open_now, rating, user_rating_count, photo_url, website, phone, fetched_at");
   if (error) throw error;
   return (data ?? []) as unknown as PlaceInfo[];
 }
@@ -159,6 +159,12 @@ export function useBarPulse() {
     return map;
   }, [updatesQuery.data]);
 
+  const placeInfoByBar = useMemo(() => {
+    const map = new Map<string, PlaceInfo>();
+    for (const p of placeQuery.data ?? []) map.set(p.bar_id, p);
+    return map;
+  }, [placeQuery.data]);
+
   const consensusByBar = useMemo(() => {
     const grouped = new Map<string, BarUpdate[]>();
     for (const u of updatesQuery.data ?? []) {
@@ -173,7 +179,6 @@ export function useBarPulse() {
       confirmationsByBar.set(c.bar_id, list);
     }
     const baselineByBar = new Map((baselinesQuery.data ?? []).map((b) => [b.bar_id, b]));
-    const placeByBar = new Map((placeQuery.data ?? []).map((p) => [p.bar_id, p]));
 
     const map = new Map<string, Consensus>();
     const barIds = new Set([
