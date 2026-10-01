@@ -310,6 +310,7 @@ function Index() {
                 bar={bar}
                 update={latestByBar.get(bar.id)}
                 consensus={consensusByBar.get(bar.id)}
+                place={placeByBar.get(bar.id)}
                 active={selectedId === bar.id}
                 checkingIn={checkingInId === bar.id}
                 confirming={confirmingId === bar.id}
@@ -334,6 +335,7 @@ function Index() {
             <ClientOnlyMap
               bars={visibleBars}
               consensusByBar={consensusByBar}
+              placeByBar={placeByBar}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />
