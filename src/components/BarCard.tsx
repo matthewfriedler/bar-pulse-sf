@@ -18,6 +18,7 @@ import {
   timeAgoLabel,
   type Bar,
   type Consensus,
+  type PlaceInfo,
 } from "@/lib/barpulse";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ interface Props {
   bar: Bar;
   update: LatestUpdate | undefined;
   consensus: Consensus | undefined;
+  place?: PlaceInfo | null | undefined;
   active: boolean;
   checkingIn: boolean;
   confirming: boolean;
@@ -38,6 +40,7 @@ export function BarCard({
   bar,
   update,
   consensus,
+  place,
   active,
   checkingIn,
   confirming,
@@ -63,12 +66,47 @@ export function BarCard({
           : "border-border hover:-translate-y-0.5 hover:border-primary/40",
       )}
     >
+      {place?.photo_url && (
+        <div className="relative -mx-4 -mt-4 mb-3 overflow-hidden rounded-t-2xl">
+          <img
+            src={place.photo_url}
+            alt={bar.name}
+            loading="lazy"
+            className="h-28 w-full object-cover"
+          />
+          <span className="absolute right-2 bottom-2 rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur">
+            Photo: Google
+          </span>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate font-display text-lg font-semibold">{bar.name}</h3>
           <p className="truncate text-xs text-muted-foreground">
             {bar.neighborhood} · {bar.vibe}
+            {place?.rating != null && (
+              <span>
+                {" "}· ★ {place.rating}
+                {place.user_rating_count != null &&
+                  ` (${
+                    place.user_rating_count > 999
+                      ? `${(place.user_rating_count / 1000).toFixed(1)}k`
+                      : place.user_rating_count
+                  })`}
+              </span>
+            )}
           </p>
+          {place?.open_now != null && (
+            <p
+              className={cn(
+                "text-xs font-semibold",
+                place.open_now ? "text-status-clear" : "text-status-busy",
+              )}
+            >
+              {place.open_now ? "Open now" : "Closed right now"}
+            </p>
+          )}
         </div>
         <span
           className={cn(

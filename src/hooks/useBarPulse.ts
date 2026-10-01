@@ -1,5 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { refreshPlaceCache } from "@/lib/places.functions";
 import type { Session } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -86,7 +88,7 @@ async function fetchBaselines(): Promise<Baseline[]> {
 async function fetchPlaceInfo(): Promise<PlaceInfo[]> {
   const { data, error } = await supabase
     .from("bar_place_cache")
-    .select("bar_id, open_now, rating, user_rating_count");
+    .select("bar_id, open_now, rating, user_rating_count, photo_url, website, phone, fetched_at");
   if (error) throw error;
   return (data ?? []) as unknown as PlaceInfo[];
 }
@@ -159,6 +161,12 @@ export function useBarPulse() {
     return map;
   }, [updatesQuery.data]);
 
+  const placeInfoByBar = useMemo(() => {
+    const map = new Map<string, PlaceInfo>();
+    for (const p of placeQuery.data ?? []) map.set(p.bar_id, p);
+    return map;
+  }, [placeQuery.data]);
+
   const consensusByBar = useMemo(() => {
     const grouped = new Map<string, BarUpdate[]>();
     for (const u of updatesQuery.data ?? []) {
@@ -173,7 +181,6 @@ export function useBarPulse() {
       confirmationsByBar.set(c.bar_id, list);
     }
     const baselineByBar = new Map((baselinesQuery.data ?? []).map((b) => [b.bar_id, b]));
-    const placeByBar = new Map((placeQuery.data ?? []).map((p) => [p.bar_id, p]));
 
     const map = new Map<string, Consensus>();
     const barIds = new Set([
@@ -187,7 +194,7 @@ export function useBarPulse() {
           checkedIn: checkinsQuery.data?.get(id) ?? 0,
           confirmations: confirmationsByBar.get(id) ?? [],
           baseline: baselineByBar.get(id) ?? null,
-          place: placeByBar.get(id) ?? null,
+          place: placeInfoByBar.get(id) ?? null,
         }),
       );
     }
@@ -198,13 +205,14 @@ export function useBarPulse() {
     barsQuery.data,
     confirmationsQuery.data,
     baselinesQuery.data,
-    placeQuery.data,
+    placeInfoByBar,
   ]);
 
   return {
     bars: barsQuery.data ?? [],
     latestByBar,
     consensusByBar,
+    placeByBar: placeInfoByBar,
     isLoading: barsQuery.isLoading || updatesQuery.isLoading,
     refetchUpdates: () => {
       void queryClient.invalidateQueries({ queryKey: ["bar_updates"] });
@@ -212,6 +220,48 @@ export function useBarPulse() {
       void queryClient.invalidateQueries({ queryKey: ["bar_confirmations"] });
     },
   };
+}
+
+/** How stale the Google-sourced place data may get before it is refreshed. */
+const PLACE_CACHE_MAX_AGE_MS = 6 * 60 * 60_000;
+
+/**
+ * Keeps Google place data (photo, rating, open/closed) fresh. Runs at most
+ * once per mount, only for signed-in visitors, and only when the cache is
+ * older than 6 hours — keeps Google usage small and bounded.
+ */
+export function usePlaceAutoRefresh(signedIn: boolean) {
+  const queryClient = useQueryClient();
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (!signedIn) return;
+    let cancelled = false;
+    void (async () => {
+      // Give the place-cache query a moment to load before deciding.
+      for (let i = 0; i < 20; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (cancelled) return;
+        const cached = queryClient.getQueryData<PlaceInfo[]>(["bar_place_cache"]);
+        if (!cached) continue;
+        if (ran.current) return;
+        ran.current = true;
+        const newest = cached.reduce(
+          (max, p) => (p.fetched_at ? Math.max(max, new Date(p.fetched_at).getTime()) : max),
+          0,
+        );
+        if (Date.now() - newest < PLACE_CACHE_MAX_AGE_MS) return;
+        const res = await refreshPlaceCache();
+        if (res.ok && res.updated > 0) {
+          await queryClient.invalidateQueries({ queryKey: ["bar_place_cache"] });
+        }
+        return;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, queryClient]);
 }
 
 

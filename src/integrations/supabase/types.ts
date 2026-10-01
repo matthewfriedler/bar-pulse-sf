@@ -90,27 +90,36 @@ export type Database = {
           fetched_at: string
           hours: Json | null
           open_now: boolean | null
+          phone: string | null
+          photo_url: string | null
           place_id: string | null
           rating: number | null
           user_rating_count: number | null
+          website: string | null
         }
         Insert: {
           bar_id: string
           fetched_at?: string
           hours?: Json | null
           open_now?: boolean | null
+          phone?: string | null
+          photo_url?: string | null
           place_id?: string | null
           rating?: number | null
           user_rating_count?: number | null
+          website?: string | null
         }
         Update: {
           bar_id?: string
           fetched_at?: string
           hours?: Json | null
           open_now?: boolean | null
+          phone?: string | null
+          photo_url?: string | null
           place_id?: string | null
           rating?: number | null
           user_rating_count?: number | null
+          website?: string | null
         }
         Relationships: [
           {

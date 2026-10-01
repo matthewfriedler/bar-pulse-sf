@@ -72,6 +72,10 @@ export interface PlaceInfo {
   open_now: boolean | null;
   rating: number | null;
   user_rating_count: number | null;
+  photo_url: string | null;
+  website: string | null;
+  phone: string | null;
+  fetched_at: string | null;
 }
 
 
