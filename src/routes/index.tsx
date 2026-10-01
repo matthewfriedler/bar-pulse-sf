@@ -11,7 +11,7 @@ import { UpdateDialog } from "@/components/UpdateDialog";
 import { UserAvatar } from "@/components/UserAvatar";
 import { UsernamePrompt } from "@/components/UsernamePrompt";
 import { Button } from "@/components/ui/button";
-import { useBarPulse, useSession } from "@/hooks/useBarPulse";
+import { useBarPulse, usePlaceAutoRefresh, useSession } from "@/hooks/useBarPulse";
 import { useMyStaff } from "@/hooks/useStaff";
 import { useTheme } from "@/hooks/useTheme";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,9 +49,11 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   const { theme, toggle, set: setTheme } = useTheme();
-  const { bars, latestByBar, consensusByBar, isLoading, refetchUpdates } = useBarPulse();
+  const { bars, latestByBar, consensusByBar, placeByBar, isLoading, refetchUpdates } =
+    useBarPulse();
   const { session, profile, username, refreshProfile } = useSession();
   const { approvedBarIds } = useMyStaff(session?.user.id ?? null);
+  usePlaceAutoRefresh(!!session);
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);

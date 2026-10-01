@@ -64,6 +64,20 @@ export default function BarMap({ bars, consensusByBar, placeByBar, selectedId, o
             <span className="font-semibold">{bar.name}</span>
             <br />
             {STATUS_META[consensusByBar.get(bar.id)?.status ?? "unknown"].label}
+            {(() => {
+              const place = placeByBar?.get(bar.id);
+              if (!place || (place.rating == null && place.open_now == null)) return null;
+              return (
+                <>
+                  <br />
+                  <span className="text-xs opacity-80">
+                    {place.rating != null && `★ ${place.rating}`}
+                    {place.rating != null && place.open_now != null && " · "}
+                    {place.open_now != null && (place.open_now ? "Open" : "Closed")}
+                  </span>
+                </>
+              );
+            })()}
           </Tooltip>
         </Marker>
       ))}
