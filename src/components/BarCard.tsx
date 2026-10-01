@@ -26,7 +26,7 @@ interface Props {
   bar: Bar;
   update: LatestUpdate | undefined;
   consensus: Consensus | undefined;
-  place?: PlaceInfo | null;
+  place?: PlaceInfo | null | undefined;
   active: boolean;
   checkingIn: boolean;
   confirming: boolean;

@@ -194,7 +194,7 @@ export function useBarPulse() {
           checkedIn: checkinsQuery.data?.get(id) ?? 0,
           confirmations: confirmationsByBar.get(id) ?? [],
           baseline: baselineByBar.get(id) ?? null,
-          place: placeByBar.get(id) ?? null,
+          place: placeInfoByBar.get(id) ?? null,
         }),
       );
     }
