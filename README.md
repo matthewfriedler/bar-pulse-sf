@@ -55,19 +55,6 @@ backgrounds, rounded cards, a bold modern display font for headings. Avoid
 generic dark-mode-only dashboards; this should feel like a fun consumer app
 a young SF crowd would actually want to open before a night out.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/1e69d914-de5e-49a5-be0e-6325bf1b7c9e).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
 git clone <this-repository-url>
