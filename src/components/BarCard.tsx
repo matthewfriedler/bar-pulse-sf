@@ -18,6 +18,7 @@ import {
   timeAgoLabel,
   type Bar,
   type Consensus,
+  type PlaceInfo,
 } from "@/lib/barpulse";
 import { cn } from "@/lib/utils";
 

@@ -222,6 +222,48 @@ export function useBarPulse() {
   };
 }
 
+/** How stale the Google-sourced place data may get before it is refreshed. */
+const PLACE_CACHE_MAX_AGE_MS = 6 * 60 * 60_000;
+
+/**
+ * Keeps Google place data (photo, rating, open/closed) fresh. Runs at most
+ * once per mount, only for signed-in visitors, and only when the cache is
+ * older than 6 hours — keeps Google usage small and bounded.
+ */
+export function usePlaceAutoRefresh(signedIn: boolean) {
+  const queryClient = useQueryClient();
+  const ran = useRef(false);
+
+  useEffect(() => {
+    if (!signedIn) return;
+    let cancelled = false;
+    void (async () => {
+      // Give the place-cache query a moment to load before deciding.
+      for (let i = 0; i < 20; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (cancelled) return;
+        const cached = queryClient.getQueryData<PlaceInfo[]>(["bar_place_cache"]);
+        if (!cached) continue;
+        if (ran.current) return;
+        ran.current = true;
+        const newest = cached.reduce(
+          (max, p) => (p.fetched_at ? Math.max(max, new Date(p.fetched_at).getTime()) : max),
+          0,
+        );
+        if (Date.now() - newest < PLACE_CACHE_MAX_AGE_MS) return;
+        const res = await refreshPlaceCache();
+        if (res.ok && res.updated > 0) {
+          await queryClient.invalidateQueries({ queryKey: ["bar_place_cache"] });
+        }
+        return;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [signedIn, queryClient]);
+}
+
 
 export interface Profile {
   id: string;
