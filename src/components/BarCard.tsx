@@ -26,6 +26,7 @@ interface Props {
   bar: Bar;
   update: LatestUpdate | undefined;
   consensus: Consensus | undefined;
+  place?: PlaceInfo | null;
   active: boolean;
   checkingIn: boolean;
   confirming: boolean;
@@ -39,6 +40,7 @@ export function BarCard({
   bar,
   update,
   consensus,
+  place,
   active,
   checkingIn,
   confirming,
